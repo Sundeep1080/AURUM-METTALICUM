@@ -51,3 +51,5 @@
 {"id":"jmd_1049","title":"Crypto","artist":"Kevin MacLeod","album":"Royalty Free","genre":"Electronic","duration":195,"stream_url":"https://incompetech.com/music/royalty-free/mp3-royaltyfree/Crypto.mp3","download_url":"https://incompetech.com/music/royalty-free/mp3-royaltyfree/Crypto.mp3","image":"","license":"CC BY 3.0","source":"Jamendo","year":"2021"},
 {"id":"jmd_1050","title":"Digital Lemonade","artist":"Kevin MacLeod","album":"Royalty Free","genre":"Electronic","duration":185,"stream_url":"https://incompetech.com/music/royalty-free/mp3-royaltyfree/Digital%20Lemonade.mp3","download_url":"https://incompetech.com/music/royalty-free/mp3-royaltyfree/Digital%20Lemonade.mp3","image":"","license":"CC BY 3.0","source":"Jamendo","year":"2021"}
 ]}
+pip install requests
+python3 update_index.py
