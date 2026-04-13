@@ -1,1 +1,50 @@
+name: Grow Music Library
 
+on:
+  schedule:
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'Mode: fast=500 tracks, deep=2000, max=5000'
+        required: false
+        default: 'fast'
+        type: choice
+        options:
+          - fast
+          - deep
+          - max
+
+jobs:
+  grow-library:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install requests
+        run: pip install requests
+
+      - name: Run updater
+        run: python3 update_index.py --mode ${{ github.event.inputs.mode || 'fast' }}
+
+      - name: Commit results
+        run: |
+          git config user.email "bot@aura.music"
+          git config user.name "AURA Bot"
+          git add music_index.json
+          if git diff --staged --quiet; then
+            echo "No new tracks today"
+          else
+            TOTAL=$(python3 -c "import json; print(json.load(open('music_index.json'))['total'])")
+            git commit -m "Library update: ${TOTAL} total tracks $(date +'%Y-%m-%d')"
+            git push
+          fi
