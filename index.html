@@ -665,10 +665,17 @@ input[type=range]{flex:1;accent-color:var(--gold);cursor:pointer;height:3px;}
       <div class="il-list" id="spList"><div class="iempty">No Spotify playlist imported yet.</div></div>
     </div>
     <div class="isec">
-      <div class="ititle">YouTube Music <span class="ibadge" style="background:rgba(255,80,80,0.12);color:#ff6b6b;border:1px solid rgba(255,80,80,0.2);">JSON</span></div>
+      <div class="ititle">YouTube Music <span class="ibadge" style="background:rgba(255,80,80,0.12);color:#ff6b6b;border:1px solid rgba(255,80,80,0.2);">CSV</span></div>
       <div class="ibox">
-        <div class="inote">1. Go to <a href="https://takeout.google.com" target="_blank">takeout.google.com</a> → export YouTube data<br>2. Find playlists JSON → Import below</div>
-        <button class="ibtn" onclick="doImport('yt')"><span>🔴</span><span>Import YouTube Music JSON</span></button>
+        <div class="inote">
+          1. Go to <a href="https://takeout.google.com" target="_blank">takeout.google.com</a><br>
+          2. Select only <b>YouTube and YouTube Music</b><br>
+          3. Click <b>"All YouTube data included"</b> → uncheck all → check only <b>"music library songs"</b><br>
+          4. Click OK → Next step → Create export<br>
+          5. Download the ZIP → find <b>music-library-songs.csv</b> → import below<br>
+          <span style="color:var(--gold);">⚠ Export takes 1–24 hours to arrive in your email</span>
+        </div>
+        <button class="ibtn" onclick="doImport('yt')"><span>🔴</span><span>Import YouTube Music CSV</span></button>
       </div>
       <div class="il-list" id="ytList"><div class="iempty">No YouTube Music playlist imported yet.</div></div>
     </div>
@@ -1152,10 +1159,11 @@ function renderLibItems(items){
 }
 function playLibTrack(id){
   const t=libData.find(x=>x.id===id);if(!t)return;
-  if(t.source==='Internet Archive'){streamIA(id.replace('ia_',''),t.title);return;}
-  streamDirect(t.stream_url,t.title,t.artist);
   document.querySelectorAll('[id^="li-"]').forEach(e=>e.classList.remove('playing'));
   const el=document.getElementById('li-'+id);if(el)el.classList.add('playing');
+  if(t.source==='Internet Archive'){streamIA(id.replace('ia_',''),t.title);return;}
+  if(!t.stream_url){setStat('No stream URL.','err');return;}
+  streamDirect(t.stream_url,t.title,t.artist);
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -1233,16 +1241,31 @@ async function searchIAStream(q){
   }catch{setStat('Archive.org search failed.','err');}
 }
 async function streamIA(identifier,title){
-  setStat('Loading from Internet Archive…','load');
+  setStat('Resolving audio file…','load');
   try{
-    const r=await fetch(`https://archive.org/metadata/${identifier}`,{signal:AbortSignal.timeout(10000)});
+    // Fetch the metadata to get actual file list
+    const r=await fetch(`https://archive.org/metadata/${identifier}`,{signal:AbortSignal.timeout(12000)});
     const d=await r.json();
-    const f=(d.files||[]).find(f=>/\.(mp3|ogg|flac|m4a)$/i.test(f.name)&&f.source==='original')||
-             (d.files||[]).find(f=>/\.(mp3|ogg|flac|m4a)$/i.test(f.name));
-    if(!f){setStat('No audio file found in this item.','err');return;}
-    playStream(`https://archive.org/download/${identifier}/${f.name}`,title,'Internet Archive','Archive.org');
+    const files=d.files||[];
+    // Priority: original MP3 > derived MP3 > ogg > flac > m4a
+    const audio=
+      files.find(f=>/\.mp3$/i.test(f.name)&&f.source==='original') ||
+      files.find(f=>/\.mp3$/i.test(f.name)) ||
+      files.find(f=>/\.(ogg|m4a|flac)$/i.test(f.name)&&f.source==='original') ||
+      files.find(f=>/\.(ogg|m4a|flac)$/i.test(f.name));
+    if(!audio){
+      setStat('No playable audio in this item. Try another.','err');
+      log(`Archive: no audio in ${identifier}`,'warn');
+      return;
+    }
+    const url=`https://archive.org/download/${identifier}/${encodeURIComponent(audio.name)}`;
+    log(`Archive: playing ${audio.name}`,'ai');
+    playStream(url,title,'Internet Archive','Archive.org ✅');
     setStat(`▶ ${title}`,'ok');
-  }catch{setStat('Could not load from Archive.org.','err');}
+  }catch(e){
+    setStat('Archive.org load failed — check connection.','err');
+    log('Archive error: '+e.message,'err');
+  }
 }
 async function searchJMD(q){
   try{
@@ -1293,8 +1316,19 @@ document.getElementById('impFile').addEventListener('change',function(e){
   const reader=new FileReader();
   reader.onload=ev=>{
     try{
-      if(importTarget==='yt')parseYTJSON(ev.target.result);
-      else parseCSVImport(ev.target.result,importTarget);
+      const text=ev.target.result;
+      // YouTube Music from Google Takeout exports as CSV (not JSON)
+      // File is usually named "music-library-songs.csv" or "playlist_videos.csv"
+      if(importTarget==='yt'){
+        // Try CSV first (Google Takeout format), then JSON
+        if(f.name.endsWith('.json')){
+          parseYTJSON(text);
+        } else {
+          parseYTCSV(text);
+        }
+      } else {
+        parseCSVImport(text,importTarget);
+      }
     }catch(err){log('Import error: '+err.message,'err');}
   };
   reader.readAsText(f);this.value='';
@@ -1308,29 +1342,60 @@ function parseCSVImport(text,src){
   renderImportList(items,src);log(`${src} import: ${items.length} tracks`,'ai');
 }
 function csvLine(l){const r=[];let cur='',q=false;for(const c of l){if(c==='"')q=!q;else if(c===','&&!q){r.push(cur.trim());cur='';}else cur+=c;}r.push(cur.trim());return r;}
+function parseYTCSV(text){
+  // Google Takeout "music-library-songs.csv" format
+  const lines=text.trim().split('\n');if(lines.length<2)return;
+  const hdr=lines[0].split(',').map(h=>h.replace(/"/g,'').trim().toLowerCase());
+  const ni=hdr.findIndex(h=>h.includes('title')||h.includes('song')||h.includes('name')||h.includes('video title'));
+  const ai=hdr.findIndex(h=>h.includes('artist')||h.includes('channel'));
+  const items=lines.slice(1).map(l=>{
+    const c=csvLine(l);
+    return{name:(c[Math.max(0,ni)]||c[0]||'').replace(/"/g,'').trim(),
+           artist:(ai>=0?(c[ai]||''):'').replace(/"/g,'').trim()};
+  }).filter(i=>i.name&&i.name.length>1);
+  renderImportList(items,'yt');
+  log(`YouTube Music CSV: ${items.length} tracks imported`,'ai');
+  log(`💡 Go to Stream tab → YouTube → search any track name to play`,'warn');
+}
 function parseYTJSON(text){
   const d=JSON.parse(text);let items=[];
   if(Array.isArray(d))items=d.map(t=>({name:t.title||'',artist:t.snippet?.videoOwnerChannelTitle||''}));
   else if(d.items)items=d.items.map(t=>({name:t.snippet?.title||'',artist:''}));
   else if(d.tracks)items=d.tracks.map(t=>({name:t.title||t.name||'',artist:t.artist||''}));
   items=items.filter(i=>i.name&&!i.name.includes('[Deleted'));
-  renderImportList(items,'yt');log(`YouTube import: ${items.length} tracks`,'ai');
+  renderImportList(items,'yt');log(`YouTube JSON import: ${items.length} tracks`,'ai');
+}
+function streamFromImport(title,artist,src){
+  // Auto-search YouTube for this song
+  const q=(title+' '+(artist||'')).trim();
+  document.getElementById('streamQ').value=q;
+  streamSrc='yt';
+  document.querySelectorAll('.stab').forEach(b=>b.classList.remove('active'));
+  document.getElementById('st-yt').classList.add('active');
+  // Switch to stream tab
+  const streamTab=document.querySelector('.tab[onclick*="stream"]');
+  if(streamTab)streamTab.click();
+  doSearch();
+  log(`Searching YouTube: "${q}"`, 'ai');
 }
 function renderImportList(items,src){
   const listId={spotify:'spList',yt:'ytList',amazon:'amList'}[src];
   const el=document.getElementById(listId);
   const localNames=tracks.map(t=>t.name.toLowerCase());
-  el.innerHTML=items.map((it,i)=>{
+  el.innerHTML=items.slice(0,200).map((it,i)=>{
     const q=it.name.toLowerCase();
     const matched=localNames.some(n=>n.includes(q.substring(0,12))||q.includes(n.substring(0,12)));
+    const searchQ=encodeURIComponent((it.name+' '+(it.artist||'')).trim());
     return`<div class="il-item">
       <div style="flex:1;min-width:0;">
         <div class="il-name">${esc(it.name)}</div>
         ${it.artist?`<div class="il-sub">${esc(it.artist)}</div>`:''}
       </div>
-      <span class="${matched?'il-match-y':'il-match-n'}">${matched?'✓ Local':'No file'}</span>
+      <button onclick="streamFromImport('${esc(it.name).replace(/'/g,"\\'")}','${esc(it.artist||'').replace(/'/g,"\\'")}','${src}')" style="background:rgba(255,80,80,0.1);border:1px solid rgba(255,80,80,0.2);border-radius:7px;color:#ff8080;font-size:9px;padding:4px 7px;cursor:pointer;white-space:nowrap;font-family:var(--fm);margin-right:4px;">▶ Stream</button>
+      <span class="${matched?'il-match-y':'il-match-n'}">${matched?'✓ Local':'—'}</span>
     </div>`;
   }).join('');
+  if(items.length>200) el.innerHTML+=`<div style="font-size:9px;color:var(--t3);padding:8px;text-align:center;">Showing 200 of ${items.length} tracks</div>`;
 }
 
 // ═══════════════════════════════════════════════════════════════
