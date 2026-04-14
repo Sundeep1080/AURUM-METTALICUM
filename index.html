@@ -20,7 +20,7 @@
   --fd:'Playfair Display',Georgia,serif;--fm:'DM Mono','Courier New',monospace;
 }
 html,body{min-height:100vh;min-height:100dvh;}
-body{background:var(--bg);font-family:var(--fm);color:var(--t1);overflow-x:hidden;
+body{background:var(--bg);font-family:var(--fm);color:var(--t1);overflow-x:hidden;overflow-y:auto;
   padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);}
 
 /* AURORA */
@@ -33,8 +33,30 @@ body{background:var(--bg);font-family:var(--fm);color:var(--t1);overflow-x:hidde
 
 #app{position:relative;z-index:1;max-width:440px;margin:0 auto;padding:10px 10px 88px;display:flex;flex-direction:column;gap:8px;}
 
-/* CARD */
-.card{background:var(--s1);border:1px solid var(--bdr2);border-radius:var(--r);overflow:hidden;}
+/* AI STRIP */
+.ai-strip{background:var(--s1);border:1px solid var(--bdr);border-radius:var(--r2);padding:10px 13px;display:flex;align-items:center;gap:10px;position:relative;overflow:hidden;}
+.ai-strip::after{content:'';position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(201,168,76,0.03),transparent);animation:shim 3s ease-in-out infinite;}
+@keyframes shim{0%{transform:translateX(-100%);}100%{transform:translateX(100%);}}
+.ai-orb{width:36px;height:36px;border-radius:50%;flex-shrink:0;z-index:1;background:radial-gradient(circle at 35% 35%,var(--g2),var(--g),#5a3a00);display:flex;align-items:center;justify-content:center;font-size:16px;}
+.ai-orb.pulse{animation:orbP 0.9s ease-in-out infinite;}
+@keyframes orbP{0%,100%{box-shadow:0 0 8px rgba(201,168,76,0.3);}50%{box-shadow:0 0 28px rgba(201,168,76,0.9);}}
+.ai-info{flex:1;min-width:0;z-index:1;}
+.ai-status{font-size:11px;color:var(--t1);font-family:var(--fd);font-weight:700;}
+.ai-sub{font-size:8px;color:var(--t3);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.scan-btn{background:linear-gradient(135deg,var(--g),var(--g2));border:none;border-radius:var(--r3);color:#000;font-size:9px;font-weight:700;padding:9px 12px;cursor:pointer;font-family:var(--fm);letter-spacing:1px;white-space:nowrap;z-index:1;box-shadow:0 3px 10px rgba(201,168,76,0.4);}
+.scan-btn.busy{background:rgba(201,168,76,0.1);color:var(--g);border:1px solid var(--bdr);box-shadow:none;}
+
+/* MEM STAT */
+.mem-stat{display:flex;align-items:center;gap:8px;padding:7px 13px;background:rgba(57,217,138,0.04);border:1px solid rgba(57,217,138,0.1);border-radius:var(--r2);}
+.mem-dot{width:6px;height:6px;border-radius:50%;background:var(--gr);box-shadow:0 0 6px var(--gr);}
+
+/* PWA BANNER */
+.pwa-bar{display:none;background:rgba(201,168,76,0.08);border:1px solid rgba(201,168,76,0.25);border-radius:var(--r2);padding:9px 13px;gap:9px;align-items:center;}
+.pwa-bar.show{display:flex;}
+.pwa-bar span{flex:1;font-size:9px;color:var(--t2);}
+.pwa-bar span b{color:var(--g2);}
+.pwa-install{background:linear-gradient(135deg,var(--g),var(--g2));border:none;border-radius:8px;color:#000;font-size:9px;font-weight:700;padding:7px 12px;cursor:pointer;font-family:var(--fm);}
+.pwa-x{background:none;border:none;color:var(--t3);font-size:18px;cursor:pointer;}
 .card-hdr{display:flex;align-items:center;justify-content:space-between;padding:8px 14px;border-bottom:1px solid var(--bdr2);}
 .card-ttl{font-size:9px;color:var(--g);letter-spacing:2px;text-transform:uppercase;}
 
@@ -300,6 +322,30 @@ input[type=range]{flex:1;accent-color:var(--g);cursor:pointer;height:3px;}
     <button class="hbtn" onclick="document.getElementById('fi').click()" title="Add files">＋</button>
     <input type="file" id="fi" accept="audio/*" multiple style="display:none">
   </div>
+</div>
+
+<!-- PWA INSTALL BANNER -->
+<div class="pwa-bar" id="pwaBar">
+  <span>📱 <b>Install AURA</b> — add to home screen, works offline</span>
+  <button class="pwa-install" onclick="installPWA()">Install</button>
+  <button class="pwa-x" onclick="document.getElementById('pwaBar').classList.remove('show')">✕</button>
+</div>
+
+<!-- AI STRIP WITH SCAN BUTTON -->
+<div class="ai-strip">
+  <div class="ai-orb" id="aiOrb">🎵</div>
+  <div class="ai-info">
+    <div class="ai-status" id="aiStatus">Smart Audio Engine Ready</div>
+    <div class="ai-sub" id="aiSub">Adaptive DSP · Auto-mastering · Tap SCAN to optimise any track</div>
+  </div>
+  <button class="scan-btn" id="scanBtn" onclick="runScan()">⚡ SCAN</button>
+</div>
+
+<!-- MEM STAT -->
+<div class="mem-stat">
+  <div class="mem-dot"></div>
+  <div class="mem-txt" id="memTxt" style="flex:1;font-size:9px;color:rgba(57,217,138,0.7);">Memory · 0 tracks cached</div>
+  <button style="background:none;border:1px solid rgba(240,86,86,0.2);border-radius:6px;color:rgba(240,86,86,0.5);font-size:8px;padding:3px 7px;cursor:pointer;font-family:var(--fm);" onclick="clearMem()">🗑 Clear</button>
 </div>
 
 <!-- DET GRID -->
@@ -988,8 +1034,11 @@ async function runScan(){
   }
 
   scanning=true;
+  const sb=document.getElementById('scanBtn');
+  if(sb){sb.textContent='…';sb.classList.add('busy');}
   document.getElementById('autoScanBtn').textContent='Analysing…';
   document.getElementById('aiOrb')?.classList.add('pulse');
+  setAI('Scanning…','Measuring spectrum, loudness, dynamics & vocal presence');
   log('⚡ Analysing audio — measuring spectrum, loudness, dynamics','ai');
 
   const wasPlaying=playing;
@@ -1038,6 +1087,10 @@ async function runScan(){
 
   scanning=false;
   document.getElementById('autoScanBtn').textContent='⚡ Analyse';
+  const sb=document.getElementById('scanBtn');
+  if(sb){sb.textContent='⚡ SCAN';sb.classList.remove('busy');}
+  document.getElementById('aiOrb')?.classList.remove('pulse');
+  setAI('✅ Optimised & Saved',`${genre} · ${lufs.toFixed(1)} LUFS · Adaptive DSP active`);
 }
 
 function applySettings(s,cached){
@@ -1097,36 +1150,58 @@ function setStat(msg,type=''){const el=document.getElementById('searchStat');if(
 function hilite(id){document.querySelectorAll('.ritem').forEach(e=>e.classList.remove('playing'));const el=document.getElementById(id);if(el)el.classList.add('playing');}
 
 // ── ARCHIVE.ORG ────────────────────────────────────────────────
+// ── ARCHIVE.ORG — Primary source, always works ────────────────
 async function searchIA(q){
-  setStat('Searching Archive.org…','load');
+  setStat('Searching Archive.org (5M+ recordings)…','load');
   try{
-    const ctrl=new AbortController();setTimeout(()=>ctrl.abort(),15000);
-    const url=`https://archive.org/advancedsearch.php?q=${encodeURIComponent(q)}+AND+mediatype:audio&fl[]=identifier,title,creator,year,downloads&rows=30&output=json&sort[]=downloads+desc`;
-    const r=await fetch(url,{signal:ctrl.signal});
+    // Use URLSearchParams for correct encoding
+    const params=new URLSearchParams();
+    params.set('q', q + ' AND mediatype:audio');
+    params.append('fl[]','identifier');
+    params.append('fl[]','title');
+    params.append('fl[]','creator');
+    params.append('fl[]','year');
+    params.append('fl[]','downloads');
+    params.set('rows','30');
+    params.set('output','json');
+    params.append('sort[]','downloads desc');
+
+    const ctrl=new AbortController();
+    const tid=setTimeout(()=>ctrl.abort(),15000);
+    const r=await fetch(`https://archive.org/advancedsearch.php?${params.toString()}`,{signal:ctrl.signal});
+    clearTimeout(tid);
     if(!r.ok)throw new Error(`HTTP ${r.status}`);
     const d=await r.json();
     const items=(d.response?.docs||[]).slice(0,25);
-    if(!items.length){setStat(`No results for "${q}". Try the collection buttons above.`,'err');return;}
-    setStat(`${items.length} free recordings found`,'ok');
+    if(!items.length){
+      setStat(`No results for "${q}". Try: lata mangeshkar, kishore kumar, AR Rahman, jazz, classical`,'err');
+      return;
+    }
+    setStat(`${items.length} free recordings · tap to stream instantly`,'ok');
     document.getElementById('searchResults').innerHTML=items.map(item=>{
-      const title=item.title||item.identifier;
-      const artist=Array.isArray(item.creator)?item.creator[0]:(item.creator||'Archive.org');
-      const plays=item.downloads?`${parseInt(item.downloads).toLocaleString()} plays`:'';
+      const title=esc(item.title||item.identifier);
+      const artist=esc(Array.isArray(item.creator)?item.creator[0]:(item.creator||''));
+      const yr=item.year?'· '+item.year:'';
+      const plays=item.downloads?parseInt(item.downloads).toLocaleString()+' plays':'';
       const iid=esc(item.identifier);
-      return`<div class="ritem" data-id="${iid}" data-title="${esc(title)}" data-artist="${esc(artist)}">
-        <div class="rthumb" style="overflow:hidden;border-radius:8px;">
-          <img src="https://archive.org/services/img/${iid}" loading="lazy" style="width:44px;height:44px;object-fit:cover;" onerror="this.parentNode.innerHTML='📻'">
+      return`<div class="ritem" data-id="${iid}" data-title="${title}" data-artist="${artist}">
+        <div class="rthumb" style="overflow:hidden;border-radius:8px;width:44px;height:44px;flex-shrink:0;background:var(--s2);display:flex;align-items:center;justify-content:center;">
+          <img src="https://archive.org/services/img/${iid}" loading="lazy" style="width:44px;height:44px;object-fit:cover;border-radius:8px;" onerror="this.parentNode.innerHTML='📻'">
         </div>
         <div class="rinfo" style="cursor:pointer" onclick="streamIA(this.closest('.ritem').dataset.id,this.closest('.ritem').dataset.title,this.closest('.ritem').dataset.artist)">
-          <div class="rtitle">${esc(title)}</div>
-          <div class="rartist">${esc(artist)}${item.year?' · '+item.year:''}</div>
+          <div class="rtitle">${title}</div>
+          <div class="rartist">${artist} ${yr}</div>
           <span class="rbadge bia">Archive · Free · ${plays}</span>
         </div>
         <button class="rplay" onclick="streamIA(this.closest('.ritem').dataset.id,this.closest('.ritem').dataset.title,this.closest('.ritem').dataset.artist)">▶</button>
       </div>`;
     }).join('');
-    log(`Archive.org: ${items.length} results`,'ai');
-  }catch(e){setStat(`Archive.org failed: ${e.message}`,'err');log('Archive error: '+e.message,'err');}
+    log(`Archive.org: ${items.length} results for "${q}"`,'ai');
+  }catch(e){
+    const msg=e.name==='AbortError'?'Request timed out':''+e.message;
+    setStat(`Archive.org: ${msg}. Check internet connection.`,'err');
+    log('searchIA error: '+e.message,'err');
+  }
 }
 async function streamIA(id,title,artist){
   setStat(`Loading "${title}"…`,'load');
@@ -1579,12 +1654,32 @@ function log(msg,type=''){const d=document.createElement('div');d.className='lli
 function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 
 // PWA
+let _deferredInstall=null;
 (()=>{
+  const mf={name:'AURA Studio Pro',short_name:'AURA',start_url:'.',display:'standalone',background_color:'#06060d',theme_color:'#06060d',
+    icons:[{src:'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect width="512" height="512" rx="80" fill="%2306060d"/><text y="340" x="256" font-size="280" text-anchor="middle">🎵</text></svg>',sizes:'512x512',type:'image/svg+xml'}]};
   const ml=document.createElement('link');ml.rel='manifest';
-  ml.href=URL.createObjectURL(new Blob([JSON.stringify({name:'AURA Studio Pro',short_name:'AURA',start_url:'.',display:'standalone',background_color:'#06060d',theme_color:'#06060d'})],{type:'application/json'}));
+  ml.href=URL.createObjectURL(new Blob([JSON.stringify(mf)],{type:'application/json'}));
   document.head.appendChild(ml);
-  if('serviceWorker' in navigator){const sw=`self.addEventListener('install',()=>self.skipWaiting());self.addEventListener('activate',()=>clients.claim());`;navigator.serviceWorker.register(URL.createObjectURL(new Blob([sw],{type:'application/javascript'}))).catch(()=>{});}
+  if('serviceWorker' in navigator){
+    const sw=`self.addEventListener('install',e=>{e.waitUntil(caches.open('aura-v8').then(c=>c.addAll(['.'])));self.skipWaiting();});
+self.addEventListener('activate',()=>clients.claim());
+self.addEventListener('fetch',e=>{e.respondWith(caches.match(e.request).then(r=>r||fetch(e.request)));});`;
+    navigator.serviceWorker.register(URL.createObjectURL(new Blob([sw],{type:'application/javascript'}))).catch(()=>{});
+  }
 })();
+window.addEventListener('beforeinstallprompt',e=>{
+  e.preventDefault();_deferredInstall=e;
+  document.getElementById('pwaBar').classList.add('show');
+  log('📱 App can be installed — tap Install in the banner','ai');
+});
+function installPWA(){
+  if(_deferredInstall){
+    _deferredInstall.prompt();
+    _deferredInstall.userChoice.then(()=>{_deferredInstall=null;document.getElementById('pwaBar').classList.remove('show');});
+  }
+}
+window.addEventListener('appinstalled',()=>{document.getElementById('pwaBar').classList.remove('show');log('✅ AURA installed as app','ai');});
 
 // ═══════════════════════════════════════════════════════════════════
 // INIT
