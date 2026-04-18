@@ -396,13 +396,39 @@ canvas#specViz{width:100%;height:48px;display:block;}
     <button class="lang-btn" onclick="setLang('punjabi music',this)">Punjabi</button>
     <button class="lang-btn" onclick="setLang('english pop',this)">English</button>
   </div>
-  <div class="src-bar">
-    <button class="src-btn on" id="srcIA"    onclick="setSrc('ia',this)">📚 Archive ✅</button>
-    <button class="src-btn"    id="srcJMD"   onclick="setSrc('jmd',this)">🎼 Jamendo ✅</button>
-    <button class="src-btn"    id="srcYT"    onclick="setSrc('yt',this)">▶ YouTube ⚠</button>
-    <button class="src-btn"    id="srcSAVN"  onclick="setSrc('saavn',this)">🎵 Saavn ⚠</button>
+  <!-- PWA GUIDE (always visible when not installed) -->
+  <div id="pwaGuide" style="background:rgba(77,159,255,.08);border:1px solid rgba(77,159,255,.2);border-radius:var(--r2);padding:8px 12px;margin-bottom:2px;font-size:8.5px;color:var(--t2);line-height:1.8;">
+    📱 <b style="color:var(--g2);">Install as App:</b>
+    Chrome/Samsung Internet → tap ⋮ menu → <b>Add to Home screen</b> → Install
+    &nbsp;·&nbsp; Works offline after install.
+    <button onclick="document.getElementById('pwaGuide').style.display='none'" style="background:none;border:none;color:var(--t3);font-size:14px;cursor:pointer;float:right;margin-top:-2px;">✕</button>
   </div>
-  <div class="src-note">✅ Always works · ⚠ Depends on external servers (may fail)</div>
+
+  <div class="lang-bar">
+    <button class="lang-btn on" onclick="setLang('',this)">🌍 All</button>
+    <button class="lang-btn" onclick="setLang('hindi bollywood',this)">🇮🇳 Hindi</button>
+    <button class="lang-btn" onclick="setLang('tamil film songs',this)">Tamil</button>
+    <button class="lang-btn" onclick="setLang('telugu film songs',this)">Telugu</button>
+    <button class="lang-btn" onclick="setLang('kannada songs',this)">Kannada</button>
+    <button class="lang-btn" onclick="setLang('malayalam film',this)">Malayalam</button>
+    <button class="lang-btn" onclick="setLang('punjabi music',this)">Punjabi</button>
+    <button class="lang-btn" onclick="setLang('english pop',this)">English</button>
+  </div>
+
+  <!-- SMART SEARCH — searches all sources, shows best results -->
+  <div class="search-bar">
+    <input class="search-input" id="searchInput" placeholder="🔍 Type any song, artist, movie name…" onkeydown="if(event.key==='Enter')smartSearch()">
+    <button class="search-go" onclick="smartSearch()">Search</button>
+  </div>
+  <!-- Source tabs below search so user can also pick a specific source -->
+  <div class="src-bar">
+    <button class="src-btn on" id="srcALL"  onclick="setSrc('all',this)">🌐 All Sources</button>
+    <button class="src-btn"    id="srcIA"   onclick="setSrc('ia',this)">📚 Archive</button>
+    <button class="src-btn"    id="srcJMD"  onclick="setSrc('jmd',this)">🎼 Jamendo</button>
+    <button class="src-btn"    id="srcYT"   onclick="setSrc('yt',this)">▶ YouTube</button>
+    <button class="src-btn"    id="srcSAVN" onclick="setSrc('saavn',this)">🎵 Saavn</button>
+  </div>
+  <div class="src-note" id="srcNote">🌐 Searches Archive.org + Jamendo + YouTube simultaneously</div>
   <div class="sec-lbl">🎭 PLAY BY MOOD</div>
   <div class="mood-grid">
     <button class="mood-btn" onclick="quickGo('romantic love songs hindi')"><div class="mood-ico">💕</div><div class="mood-lbl">Romantic</div></button>
@@ -431,11 +457,7 @@ canvas#specViz{width:100%;height:48px;display:block;}
     <button class="chip" onclick="quickGo('beethoven classical symphony')">Beethoven</button>
     <button class="chip" onclick="quickGo('blues delta recordings')">Blues</button>
   </div>
-  <div class="search-bar">
-    <input class="search-input" id="searchInput" placeholder="Search songs, artists, albums…" onkeydown="if(event.key==='Enter')doSearch()">
-    <button class="search-go" onclick="doSearch()">🔍</button>
-  </div>
-  <div class="search-status" id="searchStatus">📚 Archive.org has 5M+ recordings including Indian music</div>
+  <div class="search-status" id="searchStatus">Type any song name above and tap Search</div>
   <div class="result-list" id="resultList"></div>
 </div>
 
@@ -613,7 +635,7 @@ let trackList   = [];
 let trackIdx    = 0;
 let isPlaying   = false;
 let isScanning  = false;
-let srcMode     = 'ia';
+let srcMode     = 'all';
 let langMode    = '';
 let stShuffle   = false;
 let stRepeat    = false;
@@ -977,13 +999,14 @@ function setSrc(src, btn) {
   document.querySelectorAll('.src-btn').forEach(function(b){ b.classList.remove('on'); });
   btn.classList.add('on');
   document.getElementById('resultList').innerHTML = '';
-  var hints = {
-    ia:   '📚 Archive.org · 5M+ recordings · always works',
-    jmd:  '🎼 Jamendo · 600K CC tracks · always works',
-    yt:   '▶ YouTube via Piped · may be unavailable',
-    saavn:'🎵 JioSaavn · may be unavailable'
+  var notes = {
+    all:   '🌐 Searches Archive.org + Jamendo + YouTube simultaneously',
+    ia:    '📚 Archive.org · 5M+ recordings · always works',
+    jmd:   '🎼 Jamendo · 600K CC tracks · always works',
+    yt:    '▶ YouTube via Piped · may be unavailable',
+    saavn: '🎵 JioSaavn · may be unavailable'
   };
-  setSearchStatus(hints[src]||'');
+  document.getElementById('srcNote').textContent = notes[src]||'';
 }
 
 function setLang(lang, btn) {
@@ -991,27 +1014,147 @@ function setLang(lang, btn) {
   document.querySelectorAll('.lang-btn').forEach(function(b){ b.classList.remove('on'); });
   btn.classList.add('on');
   var q = document.getElementById('searchInput').value.trim();
-  if (q) doSearch();
+  if (q) smartSearch();
 }
 
 function quickGo(q) {
   document.getElementById('searchInput').value = q;
-  srcMode = 'ia';
+  srcMode = 'all';
   document.querySelectorAll('.src-btn').forEach(function(b){ b.classList.remove('on'); });
-  document.getElementById('srcIA').classList.add('on');
-  doSearch();
+  document.getElementById('srcALL').classList.add('on');
+  document.getElementById('srcNote').textContent = '🌐 Searching all sources…';
+  smartSearch();
 }
 
-function doSearch() {
+// doSearch is kept for backwards compat
+function doSearch() { smartSearch(); }
+
+// ── SMART SEARCH — tries all sources, merges results ──
+function smartSearch() {
   var q = document.getElementById('searchInput').value.trim();
-  if (!q) { setSearchStatus('Type a song or artist name','err'); return; }
-  var full = langMode ? q+' '+langMode : q;
-  setSearchStatus('Searching…', 'loading');
+  if (!q) { setSearchStatus('Type a song name, artist, or film title above','err'); return; }
+  var full = langMode ? q + ' ' + langMode : q;
+  setSearchStatus('Searching everywhere…', 'loading');
   document.getElementById('resultList').innerHTML = '';
-  if (srcMode==='ia') searchArchive(full);
-  else if (srcMode==='jmd') searchJamendo(full);
-  else if (srcMode==='yt') searchYouTube(full);
-  else searchSaavn(q, langMode);
+
+  if (srcMode === 'ia')    { searchArchive(full); return; }
+  if (srcMode === 'jmd')   { searchJamendo(full); return; }
+  if (srcMode === 'yt')    { searchYouTube(full); return; }
+  if (srcMode === 'saavn') { searchSaavn(q, langMode); return; }
+
+  // ALL mode — search Archive + Jamendo + YouTube in parallel
+  var allResults = [];
+  var done = 0;
+  var total = 3;
+
+  function merge(items) {
+    allResults = allResults.concat(items);
+    done++;
+    if (done === total) renderMergedResults(allResults, full);
+    else setSearchStatus('Found '+allResults.length+' results, still searching…','loading');
+  }
+
+  searchArchiveRaw(full, function(items){ merge(items); });
+  searchJamendoRaw(full, function(items){ merge(items); });
+  searchYouTubeRaw(full, function(items){ merge(items); });
+}
+
+// Render merged results from all sources
+function renderMergedResults(items, query) {
+  if (!items.length) {
+    setSearchStatus('No results found for "'+query+'". Try a different spelling.', 'err');
+    return;
+  }
+  setSearchStatus(items.length+' results from all sources · tap any to play', 'ok');
+  var html = items.map(function(item) { return item.html; }).join('');
+  document.getElementById('resultList').innerHTML = html;
+}
+
+// Raw async callbacks for parallel search
+function searchArchiveRaw(q, cb) {
+  var params = new URLSearchParams();
+  params.set('q', q + ' AND mediatype:audio');
+  params.append('fl[]','identifier'); params.append('fl[]','title');
+  params.append('fl[]','creator');    params.append('fl[]','year');
+  params.append('fl[]','downloads');
+  params.set('rows','15'); params.set('output','json');
+  params.append('sort[]','downloads desc');
+  fetch('https://archive.org/advancedsearch.php?'+params.toString())
+    .then(function(r){ return r.json(); })
+    .then(function(d) {
+      var items = (d.response&&d.response.docs) ? d.response.docs : [];
+      var results = items.slice(0,12).map(function(item) {
+        var iid=escHTML(item.identifier), title=escHTML(item.title||item.identifier);
+        var artist=escHTML(Array.isArray(item.creator)?item.creator[0]:(item.creator||''));
+        var plays=item.downloads?parseInt(item.downloads).toLocaleString()+' plays':'';
+        return {score:parseInt(item.downloads)||0, html:
+          '<div class="result-item" data-id="'+iid+'" data-title="'+title+'" data-artist="'+artist+'">'
+          +'<div class="result-thumb"><img src="https://archive.org/services/img/'+iid+'" loading="lazy" style="width:42px;height:42px;object-fit:cover;border-radius:8px;" onerror="this.parentNode.innerHTML=\'📻\'"></div>'
+          +'<div class="result-info" onclick="resolveArchive(this.closest(\'.result-item\').dataset.id,this.closest(\'.result-item\').dataset.title,this.closest(\'.result-item\').dataset.artist)">'
+          +'<div class="result-title">'+title+'</div>'
+          +'<div class="result-artist">'+artist+(item.year?' · '+item.year:'')+'</div>'
+          +'<span class="result-badge badge-ia">Archive · Free · '+plays+'</span>'
+          +'</div>'
+          +'<button class="play-circle" onclick="resolveArchive(this.closest(\'.result-item\').dataset.id,this.closest(\'.result-item\').dataset.title,this.closest(\'.result-item\').dataset.artist)">▶</button>'
+          +'</div>'};
+      });
+      cb(results);
+    }).catch(function(){ cb([]); });
+}
+
+function searchJamendoRaw(q, cb) {
+  fetch('https://api.jamendo.com/v3.0/tracks/?client_id=b6747d04&format=json&limit=8&search='+encodeURIComponent(q)+'&audioformat=mp32')
+    .then(function(r){ return r.json(); })
+    .then(function(d) {
+      var items = d.results||[];
+      var results = items.map(function(item) {
+        var au=escHTML(item.audio||''), nm=escHTML(item.name||''), ar=escHTML(item.artist_name||''), dl=escHTML(item.audiodownload||'');
+        var img=item.image?'<img src="'+escHTML(item.image)+'" loading="lazy" style="width:42px;height:42px;object-fit:cover;border-radius:8px;" onerror="this.parentNode.textContent=\'🎵\'">':'🎵';
+        return {score:0, html:
+          '<div class="result-item" data-url="'+au+'" data-title="'+nm+'" data-artist="'+ar+'">'
+          +'<div class="result-thumb">'+img+'</div>'
+          +'<div class="result-info" onclick="playStreamFromData(this.closest(\'.result-item\'),\'Jamendo CC\')">'
+          +'<div class="result-title">'+nm+'</div>'
+          +'<div class="result-artist">'+ar+'</div>'
+          +'<span class="result-badge badge-jmd">Jamendo · CC · Free DL</span>'
+          +'</div>'
+          +'<div style="display:flex;gap:4px;">'
+          +'<button class="play-circle" onclick="playStreamFromData(this.closest(\'.result-item\'),\'Jamendo CC\')">▶</button>'
+          +(dl?'<a href="'+dl+'" download target="_blank" style="width:26px;height:26px;border-radius:50%;background:rgba(57,217,138,.1);border:1px solid rgba(57,217,138,.25);color:var(--gr);font-size:11px;display:flex;align-items:center;justify-content:center;text-decoration:none;">⬇</a>':'')
+          +'</div></div>'};
+      });
+      cb(results);
+    }).catch(function(){ cb([]); });
+}
+
+function searchYouTubeRaw(q, cb) {
+  var tried=0;
+  function tryNext() {
+    if (tried>=PIPED_URLS.length) { cb([]); return; }
+    var base=PIPED_URLS[tried++];
+    fetch(base+'/search?q='+encodeURIComponent(q)+'&filter=all')
+      .then(function(r){ return r.json(); })
+      .then(function(d) {
+        var items=(d.items||[]).filter(function(i){ return i.url&&i.url.indexOf('/watch')===0; }).slice(0,8);
+        if (!items.length) { tryNext(); return; }
+        var results=items.map(function(item) {
+          var vid=escHTML((item.url||'').replace('/watch?v=','')),title=escHTML(item.title||''),artist=escHTML(item.uploaderName||'');
+          var thumb=item.thumbnail?'<img src="'+escHTML(item.thumbnail)+'" loading="lazy" style="width:42px;height:42px;object-fit:cover;border-radius:8px;" onerror="this.parentNode.textContent=\'🎵\'">':'🎵';
+          return {score:0, html:
+            '<div class="result-item" data-vid="'+vid+'" data-title="'+title+'" data-artist="'+artist+'">'
+            +'<div class="result-thumb">'+thumb+'</div>'
+            +'<div class="result-info" onclick="resolveYouTube(this.closest(\'.result-item\').dataset.vid,this.closest(\'.result-item\').dataset.title,this.closest(\'.result-item\').dataset.artist)">'
+            +'<div class="result-title">'+title+'</div>'
+            +'<div class="result-artist">'+artist+'</div>'
+            +'<span class="result-badge badge-yt">YouTube</span>'
+            +'</div>'
+            +'<button class="play-circle" onclick="resolveYouTube(this.closest(\'.result-item\').dataset.vid,this.closest(\'.result-item\').dataset.title,this.closest(\'.result-item\').dataset.artist)">▶</button>'
+            +'</div>'};
+        });
+        cb(results);
+      }).catch(function(){ tryNext(); });
+  }
+  tryNext();
 }
 
 // Archive.org
@@ -1590,14 +1733,21 @@ window.addEventListener('beforeinstallprompt', function(e) {
   e.preventDefault();
   pwaPromptEvent = e;
   document.getElementById('pwaBanner').classList.add('show');
-  appendLog('📱 App installable — tap Install banner', 'ai');
+  appendLog('📱 Native install prompt ready', 'ai');
 });
 function doPWAInstall() {
-  if (!pwaPromptEvent) return;
-  pwaPromptEvent.prompt();
-  pwaPromptEvent.userChoice.then(function(){ pwaPromptEvent=null; document.getElementById('pwaBanner').classList.remove('show'); });
+  if (pwaPromptEvent) {
+    pwaPromptEvent.prompt();
+    pwaPromptEvent.userChoice.then(function(){ pwaPromptEvent=null; document.getElementById('pwaBanner').classList.remove('show'); });
+  } else {
+    alert('Install AURA:\n\n1. Open this page in Chrome or Samsung Internet\n2. Tap ⋮ (3-dot menu, top right)\n3. Tap "Add to Home screen"\n4. Tap "Add" or "Install"\n\nAURA will appear as an app icon!');
+  }
 }
-window.addEventListener('appinstalled', function(){ document.getElementById('pwaBanner').classList.remove('show'); appendLog('✅ AURA installed as app','ai'); });
+window.addEventListener('appinstalled', function(){
+  document.getElementById('pwaBanner').classList.remove('show');
+  document.getElementById('pwaGuide').style.display='none';
+  appendLog('✅ AURA installed as app','ai');
+});
 
 // Service Worker
 if ('serviceWorker' in navigator) {
